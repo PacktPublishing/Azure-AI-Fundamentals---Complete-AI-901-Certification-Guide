@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Azure Translator Lab - Anand Rao N</title>
+    <style>
+        :root { --azure: #0078D4; --bg: #0b0e14; --panel: #161b22; --border: #30363d; --white: #ffffff; --silver: #d1d5db; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--white); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .main-header { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border: 1px solid var(--border); padding: 12px 25px; border-radius: 10px; margin-bottom: 12px; }
+        .brand-title { color: var(--azure); font-weight: 900; font-size: 22px; letter-spacing: 1.5px; }
+
+        .dashboard { display: grid; grid-template-columns: 320px 1fr 320px; gap: 12px; flex-grow: 1; min-height: 0; }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
+        .panel-title { color: var(--azure); font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+        label { display: block; font-size: 10px; color: var(--white); font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
+        input, textarea, select { width: 100%; padding: 12px; background: #010409; border: 1px solid var(--border); color: var(--white); border-radius: 6px; box-sizing: border-box; font-size: 13px; margin-bottom: 15px; }
+
+        .viewport-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-grow: 1; }
+        .text-box { background: #010409; border: 1px solid #333; border-radius: 8px; padding: 15px; font-size: 14px; line-height: 1.6; color: var(--white); overflow-y: auto; }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: 900; cursor: pointer; text-transform: uppercase; color: white; transition: 0.3s; }
+        .btn-run { background: var(--azure); }
+        .btn-reset { background: #30363d; margin-top: 10px; }
+
+        #log { flex-grow: 1; overflow-y: auto; font-family: monospace; font-size: 11px; color: #8b949e; line-height: 1.5; }
+        .log-entry { border-bottom: 1px solid #21262d; padding: 5px 0; }
+        .detected-tag { font-size: 10px; color: var(--azure); font-weight: bold; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="main-header">
+    <div>
+        <div class="brand-title">AZURE TRANSLATOR HUB</div>
+        <div style="font-size: 10px; color: #8b949e;">CYBERDEFENSELEARNING.COM</div>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 10px; color: var(--azure); font-weight: bold;">AI ARCHITECT</div>
+        <div style="font-weight: bold;">Anand Rao N</div>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="panel">
+        <div class="panel-title">1. Connection & Target</div>
+        <label>Translator Key</label>
+        <input type="password" id="key" placeholder="Azure API Key">
+        <label>Region</label>
+        <input type="text" id="region" placeholder="e.g. eastus or global">
+        <label>Target Language</label>
+        <select id="targetLang">
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="hi">Hindi</option>
+            <option value="zh-Hans">Chinese (Simplified)</option>
+            <option value="pt">Portuguese</option>
+        </select>
+        <div style="margin-top:auto;">
+            <button class="btn btn-run" id="btn" onclick="translateText()">Execute Neural Translation</button>
+            <button class="btn btn-reset" onclick="location.reload()">System Refresh</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">2. Real-Time Localization</div>
+        <div class="viewport-split">
+            <div style="display:flex; flex-direction:column;">
+                <label>Source Input</label>
+                <textarea id="sourceText" style="flex-grow:1; resize:none;" placeholder="Type or paste text here..."></textarea>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+                <label>Neural Output</label>
+                <div id="outputContainer" class="text-box">
+                    <div id="detected" class="detected-tag">AWAITING INPUT...</div>
+                    <div id="translatedText"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">3. API Transaction Logs</div>
+        <div id="log"><div class="log-entry">> Translator Service: IDLE</div></div>
+    </div>
+</div>
+
+<script>
+    async function translateText() {
+        const key = document.getElementById('key').value.trim();
+        const region = document.getElementById('region').value.trim();
+        const target = document.getElementById('targetLang').value;
+        const text = document.getElementById('sourceText').value.trim();
+        const logger = document.getElementById('log');
+        const btn = document.getElementById('btn');
+
+        if(!key || !text) return alert("Key and Source Text are required.");
+
+        btn.innerText = "Translating..."; btn.disabled = true;
+        logger.innerHTML += `<div class="log-entry">> <b>[API]</b> Requesting translation to ${target}...</div>`;
+
+        // Standard Azure Translator V3 API
+        const endpoint = "https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=" + target;
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Ocp-Apim-Subscription-Key': key,
+                    'Ocp-Apim-Subscription-Region': region,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify([{ 'Text': text }])
+            });
+
+            const data = await res.json();
+            
+            if (data[0] && data[0].translations) {
+                const result = data[0].translations[0].text;
+                const srcLang = data[0].detectedLanguage.language;
+                const confidence = (data[0].detectedLanguage.score * 100).toFixed(0);
+
+                document.getElementById('detected').innerText = `DETECTED: ${srcLang.toUpperCase()} (${confidence}% CONFIDENCE)`;
+                document.getElementById('translatedText').innerText = result;
+                logger.innerHTML += `<div class="log-entry">> <b>[SUCCESS]</b> Translation localized successfully.</div>`;
+            } else {
+                throw new Error("Invalid API Response");
+            }
+        } catch(e) {
+            logger.innerHTML += `<div class="log-entry" style="color:#f85149">> <b>[ERROR]</b> ${e.message}</div>`;
+        } finally {
+            btn.innerText = "Execute Neural Translation"; btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

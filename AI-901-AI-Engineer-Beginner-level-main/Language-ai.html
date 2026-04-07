@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure AI Language Hub - Anand Rao N</title>
+    <style>
+        :root { --azure-blue: #0078D4; --bg-gray: #f4f6f9; --dark-text: #333; }
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative; }
+        
+        h1 { color: var(--azure-blue); margin: 0; font-weight: 600; }
+        .subtitle { color: #666; margin-bottom: 25px; font-size: 1em; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        
+        textarea { width: 100%; height: 180px; padding: 15px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 16px; font-family: inherit; transition: border-color 0.3s; resize: vertical; box-sizing: border-box; }
+        textarea:focus { border-color: var(--azure-blue); outline: none; }
+
+        .control-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 12px; 
+            background: #f9f9f9; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin: 20px 0;
+            border: 1px solid #eee;
+        }
+        
+        .radio-card { 
+            display: flex; align-items: center; gap: 8px; padding: 10px; 
+            background: white; border: 1px solid #ddd; border-radius: 6px; 
+            cursor: pointer; font-size: 14px; transition: 0.2s;
+        }
+        .radio-card:hover { border-color: var(--azure-blue); background: #f0f7ff; }
+
+        .button-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-main { flex: 3; padding: 15px; background: var(--azure-blue); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-clear { flex: 1; padding: 15px; background: #e0e0e0; color: #444; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .result-area { 
+            margin-top: 20px; padding: 25px; background: #fff; border: 1px solid #e0e0e0; 
+            border-radius: 8px; display: none; border-left: 6px solid var(--azure-blue);
+        }
+        #outputContent { white-space: pre-wrap; line-height: 1.6; color: var(--dark-text); font-family: 'Segoe UI', sans-serif; }
+        
+        footer { margin-top: 40px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; }
+        .author { font-weight: bold; color: var(--azure-blue); font-size: 1.1em; }
+        .site { color: #555; font-style: italic; display: block; margin-top: 5px; }
+        .disclaimer { font-size: 0.85em; color: #999; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Azure AI Language Hub</h1>
+    <p class="subtitle">Secure Text Analytics - Author: Anand Rao N</p>
+
+    <textarea id="textInput" placeholder="Paste your text here (Patient records, feedback, or logs)..."></textarea>
+
+    <div class="control-grid">
+        <label class="radio-card"><input type="radio" name="task" value="pii" checked> 🔒 Mask PII</label>
+        <label class="radio-card"><input type="radio" name="task" value="keyphrases"> 🔑 Key Phrases</label>
+        <label class="radio-card"><input type="radio" name="task" value="sentiment"> 😊 Sentiment</label>
+        <label class="radio-card"><input type="radio" name="task" value="healthcare"> ⚕️ Health Data</label>
+        <label class="radio-card"><input type="radio" name="task" value="language"> 🌍 Detect Language</label>
+    </div>
+
+    <div class="button-row">
+        <button class="btn-main" id="actionBtn" onclick="processText()">Analyze with Azure AI</button>
+        <button class="btn-clear" onclick="clearAll()">Clear Content</button>
+    </div>
+
+    <div id="results" class="result-area">
+        <div id="outputContent"></div>
+    </div>
+
+    <footer>
+        <span class="author">Author: Anand Rao N</span>
+        <span class="site">Cyberdefenselearning.com</span>
+        <div class="disclaimer">For learning and testing purposes only.</div>
+    </footer>
+</div>
+
+<script>
+async function processText() {
+    // --- 1. CONFIGURATION ---
+    // THIS CONFIGURATION IS ONLY FOR TESTING AND LEARNING . NEVER HARDCODE CODE API KEYS OUTSIDE THIS ENVIRONMENT
+    const endpoint = "YOUR-API-ENDPOINT-HERE"; 
+    const apiKey = "YOUR_API_KEY--HERE";
+    
+    const text = document.getElementById("textInput").value;
+    const task = document.querySelector('input[name="task"]:checked').value;
+    const btn = document.getElementById("actionBtn");
+    const resultsArea = document.getElementById("results");
+    const output = document.getElementById("outputContent");
+
+    if (!text.trim()) { alert("Please enter text first."); return; }
+
+    // 2. UI RESET & LOADING STATE
+    btn.disabled = true;
+    btn.innerHTML = "Connecting to Azure...";
+    resultsArea.style.display = "none";
+
+    // 3. URL SANITIZATION (Prevents double-slash errors)
+    const cleanEndpoint = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint;
+    const url = `${cleanEndpoint}/language/:analyze-text?api-version=2023-04-01`;
+
+    // 4. PAYLOAD CONSTRUCTION
+    let body = {
+        kind: "",
+        analysisInput: { documents: [{ id: "1", text: text }] }
+    };
+
+    if (task === "language") {
+        body.kind = "LanguageDetection";
+    } else {
+        const kindMap = { 
+            "pii": "PiiEntityRecognition", 
+            "keyphrases": "KeyPhraseExtraction", 
+            "sentiment": "SentimentAnalysis", 
+            "healthcare": "Healthcare" 
+        };
+        body.kind = kindMap[task];
+        body.analysisInput.documents[0].language = "en";
+    }
+
+    // 5. API CALL
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Ocp-Apim-Subscription-Key": apiKey 
+            },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        // 6. ERROR HANDLING
+        if (!response.ok) {
+            throw new Error(`Azure Error (${response.status}): ${data.error ? data.error.message : 'Unknown Error'}`);
+        }
+
+        if (data.results.errors && data.results.errors.length > 0) {
+            throw new Error(data.results.errors[0].error.message);
+        }
+
+        const doc = data.results.documents[0];
+        resultsArea.style.display = "block";
+        
+        // 7. TASK-SPECIFIC DISPLAY LOGIC
+        let finalDisplay = "";
+
+        switch(task) {
+            case "pii":
+                let masked = text;
+                doc.entities.forEach(ent => {
+                    const mask = "*".repeat(ent.text.length);
+                    masked = masked.split(ent.text).join(mask);
+                });
+                finalDisplay = `<strong>[ANAND RAO N - PII MASKING RESULT]</strong>\n\n${masked}`;
+                break;
+            case "language":
+                finalDisplay = `<strong>Detected Language:</strong> ${doc.detectedLanguage.name}\n<strong>Confidence:</strong> ${(doc.detectedLanguage.confidenceScore * 100).toFixed(1)}%`;
+                break;
+            case "healthcare":
+                const medEntities = doc.entities.map(e => `• [${e.category}] ${e.text}`).join('\n');
+                finalDisplay = `<strong>Healthcare Entities:</strong>\n${medEntities || "No specific medical data found."}`;
+                break;
+            case "sentiment":
+                finalDisplay = `<strong>Overall Sentiment:</strong> ${doc.sentiment.toUpperCase()}\n` +
+                               `Positive: ${doc.confidenceScores.positive.toFixed(2)} | ` +
+                               `Neutral: ${doc.confidenceScores.neutral.toFixed(2)} | ` +
+                               `Negative: ${doc.confidenceScores.negative.toFixed(2)}`;
+                break;
+            case "keyphrases":
+                finalDisplay = `<strong>Key Phrases:</strong>\n${doc.keyPhrases.join(" • ")}`;
+                break;
+        }
+
+        output.innerHTML = finalDisplay;
+
+    } catch (err) {
+        alert("API COMMUNICATION FAILED:\n" + err.message);
+        console.error("Full Trace:", err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = "Analyze with Azure AI";
+    }
+}
+
+function clearAll() {
+    document.getElementById("textInput").value = "";
+    document.getElementById("results").style.display = "none";
+    document.getElementById("outputContent").innerHTML = "";
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Azure Vision Hub GA - Anand Rao N</title>
+    <style>
+        :root { --azure: #0078D4; --dark: #1e1e1e; --gold: #ffd700; --danger: #d13438; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.1); }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--azure); padding-bottom: 10px; margin-bottom: 20px; }
+        
+        .main-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        
+        .viewport { position: relative; background: #2b2b2b; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; min-height: 500px; border: 2px solid #444; }
+        #targetImg { max-width: 100%; height: auto; display: none; }
+        #placeholder-text { color: #888; }
+        
+        .metadata-panel { background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; height: 500px; overflow-y: auto; }
+        .metadata-card { background: white; border-left: 4px solid var(--azure); padding: 10px; margin-bottom: 10px; font-size: 13px; }
+
+        .person-box { position: absolute; border: 2px solid var(--gold); pointer-events: none; transition: 0.3s; }
+        .box-id { position: absolute; top: -22px; left: -2px; background: var(--gold); color: black; font-size: 10px; font-weight: bold; padding: 2px 6px; }
+
+        .config-bar { background: #fff8e1; padding: 15px; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        .slider-container { margin: 15px 0; background: #f1f1f1; padding: 15px; border-radius: 8px; }
+        .slider-label { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-bottom: 5px; }
+
+        .button-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 2; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-exec { background: var(--azure); color: white; }
+        .btn-clear { flex: 1; background: #e1dfdd; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Vision Intelligence Hub <small>(GA v4.0)</small></h1>
+        <span>Cyberdefenselearning.com</span>
+    </div>
+
+    <div class="config-bar">
+        <input type="password" id="key" placeholder="GA Vision Key">
+        <input type="text" id="endpoint" placeholder="Endpoint URL">
+    </div>
+
+    <input type="text" id="imgUrl" placeholder="Image URL (jpg/png)" onchange="updatePreview()">
+
+    <div class="slider-container">
+        <div class="slider-label">
+            <span>Confidence Threshold</span>
+            <span id="thresholdVal">50%</span>
+        </div>
+        <input type="range" id="confidenceSlider" min="1" max="100" value="50" oninput="document.getElementById('thresholdVal').innerText = this.value + '%'">
+    </div>
+
+    <div class="main-layout">
+        <div class="viewport" id="viewport">
+            <span id="placeholder-text">Input Image URL to Begin Analysis</span>
+            <img id="targetImg" src="">
+        </div>
+        <div class="metadata-panel" id="metaPanel"></div>
+    </div>
+
+    <div class="button-row">
+        <button class="btn btn-exec" onclick="analyzeGA()">RUN GA ANALYSIS</button>
+        <button class="btn btn-clear" onclick="systemReset()">SYSTEM RESET</button>
+    </div>
+</div>
+
+<script>
+    function updatePreview() {
+        const url = document.getElementById('imgUrl').value.trim();
+        const img = document.getElementById('targetImg');
+        if(url) {
+            img.src = url;
+            img.style.display = 'block';
+            document.getElementById('placeholder-text').style.display = 'none';
+            document.querySelectorAll('.person-box').forEach(b => b.remove());
+        }
+    }
+
+    async function analyzeGA() {
+        const key = document.getElementById('key').value.trim();
+        let endpoint = document.getElementById('endpoint').value.trim().replace(/\/+$/, "");
+        const url = document.getElementById('imgUrl').value.trim();
+        const threshold = document.getElementById('confidenceSlider').value / 100;
+        const panel = document.getElementById('metaPanel');
+
+        if(!key || !endpoint || !url) { alert("Missing credentials or image!"); return; }
+
+        document.querySelectorAll('.person-box').forEach(b => b.remove());
+        panel.innerHTML = "<i>Analyzing (GA 2023-10-01)...</i>";
+
+        const apiPath = `${endpoint}/computervision/imageanalysis:analyze?api-version=2023-10-01&features=people`;
+
+        try {
+            const response = await fetch(apiPath, {
+                method: 'POST',
+                headers: { 'Ocp-Apim-Subscription-Key': key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+
+            const data = await response.json();
+            
+            if (data.peopleResult && data.peopleResult.values) {
+                // Filter by confidence
+                const filtered = data.peopleResult.values.filter(p => p.confidence >= threshold);
+                panel.innerHTML = `<h3>Detected: ${filtered.length}</h3>`;
+                render(filtered);
+            } else if (data.error) {
+                panel.innerHTML = `<b style="color:red">Error:</b> ${data.error.message}`;
+            }
+        } catch (err) { panel.innerHTML = "Network Error."; }
+    }
+
+    function render(people) {
+        const img = document.getElementById('targetImg');
+        const viewport = document.getElementById('viewport');
+        const scaleX = img.clientWidth / img.naturalWidth;
+        const scaleY = img.clientHeight / img.naturalHeight;
+
+        people.forEach((p, i) => {
+            const box = document.createElement('div');
+            box.className = 'person-box';
+            box.style.left = (p.boundingBox.x * scaleX + img.offsetLeft) + 'px';
+            box.style.top = (p.boundingBox.y * scaleY + img.offsetTop) + 'px';
+            box.style.width = (p.boundingBox.w * scaleX) + 'px';
+            box.style.height = (p.boundingBox.h * scaleY) + 'px';
+            box.innerHTML = `<div class="box-id">CONF: ${(p.confidence * 100).toFixed(0)}%</div>`;
+            viewport.appendChild(box);
+
+            const card = document.createElement('div');
+            card.className = 'metadata-card';
+            card.innerHTML = `<b>Person ${i+1}</b><br>Confidence: ${(p.confidence * 100).toFixed(1)}%`;
+            document.getElementById('metaPanel').appendChild(card);
+        });
+    }
+
+    function systemReset() {
+        document.getElementById('key').value = "";
+        document.getElementById('imgUrl').value = "";
+        document.getElementById('targetImg').style.display = 'none';
+        document.getElementById('placeholder-text').style.display = 'block';
+        document.getElementById('metaPanel').innerHTML = "";
+        document.querySelectorAll('.person-box').forEach(b => b.remove());
+    }
+</script>
+</body>
+</html>

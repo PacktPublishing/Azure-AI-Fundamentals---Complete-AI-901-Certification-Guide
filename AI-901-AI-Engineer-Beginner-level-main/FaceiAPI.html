@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CyberDefense Dashboard - Anand Rao N</title>
+    <style>
+        :root { --azure: #0078D4; --bg: #0d1117; --panel: #161b22; --border: #30363d; --gold: #00ff00; --white: #ffffff; }
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg); 
+            color: var(--white); 
+            margin: 0; 
+            padding: 10px; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            box-sizing: border-box; 
+        }
+        
+        .main-header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: var(--panel); border: 1px solid var(--border); 
+            padding: 10px 20px; border-radius: 8px; margin-bottom: 10px; flex-shrink: 0; 
+        }
+        .brand-title { color: var(--azure); font-weight: 900; font-size: 20px; letter-spacing: 1.5px; }
+        .brand-sub { color: var(--white); font-size: 10px; letter-spacing: 2px; opacity: 1; } /* Forced White */
+        .architect-name { font-weight: bold; color: var(--white); font-size: 16px; }
+
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: 280px 1fr 280px; 
+            gap: 10px; 
+            flex-grow: 1; 
+            min-height: 0; 
+        }
+        
+        .panel { 
+            background: var(--panel); border: 1px solid var(--border); 
+            border-radius: 8px; display: flex; flex-direction: column; 
+            padding: 15px; overflow: hidden; 
+        }
+
+        .viewport-container {
+            flex-grow: 1;
+            position: relative;
+            background: #000;
+            border-radius: 6px;
+            overflow: auto; 
+            border: 1px solid #444;
+            display: block; 
+        }
+
+        #targetImg { display: none; margin: auto; max-width: 100%; height: auto; }
+        .face-box { position: absolute; border: 2px solid var(--gold); box-shadow: 0 0 10px var(--gold); pointer-events: none; z-index: 10; }
+
+        .config-controls { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+        .action-area { flex-shrink: 0; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+
+        #console { flex-grow: 1; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 11px; color: var(--white); }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid #21262d; color: var(--white); }
+        .log-entry b { color: var(--azure); }
+
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; text-transform: uppercase; color: var(--white); }
+        .btn-run { background: var(--azure); margin-bottom: 8px; }
+        .btn-reset { background: #30363d; }
+        
+        /* White Labels and Inputs */
+        label { display: block; font-size: 10px; margin-bottom: 6px; color: var(--white); font-weight: bold; text-transform: uppercase; }
+        input { 
+            width: 100%; padding: 10px; background: #010409; 
+            border: 1px solid var(--border); color: var(--white); 
+            border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 15px;
+        }
+        input::placeholder { color: rgba(255, 255, 255, 0.5); } /* Semi-transparent white for placeholder */
+        
+        #msg { color: var(--white); text-align: center; padding-top: 45%; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="main-header">
+    <div>
+        <div class="brand-title">CYBERDEFENSE VISION</div>
+        <div class="brand-sub">CYBERDEFENSELEARNING.COM</div>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 10px; color: var(--white); font-weight: bold; opacity: 0.7;">LEAD ARCHITECT</div>
+        <div class="architect-name">Anand Rao N</div>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="panel">
+        <div class="config-controls">
+            <label>Azure Auth Key</label>
+            <input type="password" id="key" placeholder="Key 1 or 2">
+            <label>API Endpoint</label>
+            <input type="text" id="endpoint" placeholder="https://...">
+            <label>Image URL</label>
+            <input type="text" id="url" placeholder="Paste URL" oninput="preview()">
+        </div>
+        <div class="action-area">
+            <button class="btn btn-run" onclick="analyze()">Execute Analysis</button>
+            <button class="btn btn-reset" onclick="location.reload()">System Purge</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="viewport-container" id="viewport">
+            <img id="targetImg" crossorigin="anonymous">
+            <div id="msg">AWAITING VISUAL FEED</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div id="console">
+            <div class="log-entry"><b>[SECURE]</b> Dashboard Initialized.</div>
+            <div class="log-entry"><b>[USER]</b> Anand Rao N</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function preview() {
+        const url = document.getElementById('url').value.trim();
+        const img = document.getElementById('targetImg');
+        const msg = document.getElementById('msg');
+        if(url.length > 5) {
+            img.src = url; img.style.display = 'block'; msg.style.display = 'none';
+            document.querySelectorAll('.face-box').forEach(b => b.remove());
+        }
+    }
+
+    async function analyze() {
+        const key = document.getElementById('key').value.trim();
+        let endpoint = document.getElementById('endpoint').value.trim().replace(/\/+$/, "");
+        const imgUrl = document.getElementById('url').value.trim();
+        const logger = document.getElementById('console');
+
+        if(!key || !endpoint || !imgUrl) return alert("All fields required.");
+
+        logger.innerHTML += `<div class="log-entry"><b>[SYNC]</b> Requesting Biometrics...</div>`;
+        document.querySelectorAll('.face-box').forEach(b => b.remove());
+
+        const params = new URLSearchParams({ "detectionModel": "detection_03", "returnFaceId": "false", "returnFaceAttributes": "mask,glasses" });
+
+        try {
+            const res = await fetch(`${endpoint}/face/v1.0/detect?${params}`, {
+                method: 'POST',
+                headers: { 'Ocp-Apim-Subscription-Key': key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: imgUrl })
+            });
+            const data = await res.json();
+            if(data.error) {
+                logger.innerHTML += `<div class="log-entry" style="color:#ff7b72"><b>[FAIL]</b> ${data.error.message}</div>`;
+            } else {
+                logger.innerHTML += `<div class="log-entry"><b>[DONE]</b> Found ${data.length} Subject(s).</div>`;
+                render(data);
+            }
+        } catch(e) { logger.innerHTML += `<div class="log-entry" style="color:#ff7b72"><b>[ERR]</b> Connection Lost.</div>`; }
+        logger.scrollTop = logger.scrollHeight;
+    }
+
+    function render(faces) {
+        const img = document.getElementById('targetImg');
+        const viewport = document.getElementById('viewport');
+        const scaleX = img.clientWidth / img.naturalWidth;
+        const scaleY = img.clientHeight / img.naturalHeight;
+
+        faces.forEach((f, i) => {
+            const box = document.createElement('div');
+            box.className = 'face-box';
+            box.style.left = (f.faceRectangle.left * scaleX + img.offsetLeft) + 'px';
+            box.style.top = (f.faceRectangle.top * scaleY + img.offsetTop) + 'px';
+            box.style.width = (f.faceRectangle.width * scaleX) + 'px';
+            box.style.height = (f.faceRectangle.height * scaleY) + 'px';
+            viewport.appendChild(box);
+            document.getElementById('console').innerHTML += `<div class="log-entry"><b>[SUBJ_${i+1}]</b> Mask: ${f.faceAttributes.mask.type}</div>`;
+        });
+    }
+</script>
+</body>
+</html>

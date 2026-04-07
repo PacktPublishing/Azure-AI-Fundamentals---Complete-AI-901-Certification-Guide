@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Azure Content Shield - Anand Rao N</title>
+    <style>
+        :root { --azure: #0078D4; --bg: #0b0e14; --panel: #161b22; --border: #30363d; --gold: #00ff00; --red: #f85149; --white: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--white); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .main-header { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border: 1px solid var(--border); padding: 12px 25px; border-radius: 10px; margin-bottom: 12px; flex-shrink: 0; }
+        .brand-title { color: var(--azure); font-weight: 900; font-size: 22px; letter-spacing: 1.5px; }
+
+        .dashboard { display: grid; grid-template-columns: 320px 1fr 320px; gap: 12px; flex-grow: 1; min-height: 0; }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
+        .panel-title { color: var(--azure); font-weight: 800; font-size: 11px; text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+
+        label { display: block; font-size: 10px; color: var(--white); font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
+        input, textarea { width: 100%; padding: 12px; background: #010409; border: 1px solid var(--border); color: var(--white); border-radius: 6px; box-sizing: border-box; font-size: 13px; margin-bottom: 15px; }
+
+        /* Severity Meters */
+        .meter-group { margin-bottom: 15px; }
+        .severity-bar { height: 8px; background: #000; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .fill { height: 100%; width: 0%; transition: 1s ease; }
+        .low { background: var(--gold); } .med { background: orange; } .high { background: var(--red); }
+
+        /* Jailbreak Box */
+        .shield-box { background: #010409; border: 1px solid #333; padding: 15px; border-radius: 8px; text-align: center; margin-top: 10px; }
+        #jb-status { font-size: 16px; font-weight: 900; color: var(--gold); margin-top: 5px; }
+
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: 900; cursor: pointer; text-transform: uppercase; color: white; transition: 0.3s; }
+        .btn-run { background: var(--azure); }
+        .btn-reset { background: #30363d; margin-top: 10px; }
+
+        #log { flex-grow: 1; overflow-y: auto; font-family: monospace; font-size: 11px; color: #8b949e; line-height: 1.5; }
+        .log-entry { border-bottom: 1px solid #21262d; padding: 5px 0; }
+    </style>
+</head>
+<body>
+
+<div class="main-header">
+    <div>
+        <div class="brand-title">CONTENT SAFETY OPS</div>
+        <div style="font-size: 10px; color: #8b949e;">CYBERDEFENSELEARNING.COM</div>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 10px; color: var(--azure); font-weight: bold;">ARCHITECT</div>
+        <div style="font-weight: bold;">Anand Rao N</div>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="panel">
+        <div class="panel-title">1. Evidence Input</div>
+        <label>Resource Key</label>
+        <input type="password" id="key" placeholder="Azure Key">
+        <label>Endpoint URL</label>
+        <input type="text" id="endpoint" placeholder="https://resource.contentsafety.azure.com/">
+        <label>Test Payload</label>
+        <textarea id="testText" style="height:150px; resize:none;" placeholder="Paste DAN prompt or harmful text here..."></textarea>
+        <button class="btn btn-run" id="btn" onclick="runAudit()">Execute Forensic Scan</button>
+        <button class="btn btn-reset" onclick="location.reload()">System Refresh</button>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">2. Analytics & Verdict</div>
+        <div class="meter-group"><label>Hate Speech</label><div class="severity-bar"><div id="hate-fill" class="fill"></div></div></div>
+        <div class="meter-group"><label>Violence</label><div class="severity-bar"><div id="violence-fill" class="fill"></div></div></div>
+        <div class="meter-group"><label>Self-Harm</label><div class="severity-bar"><div id="selfharm-fill" class="fill"></div></div></div>
+        <div class="meter-group"><label>Sexual Content</label><div class="severity-bar"><div id="sexual-fill" class="fill"></div></div></div>
+        
+        <div class="shield-box">
+            <label>PROMPT SHIELD (JAILBREAK)</label>
+            <div id="jb-status">SYSTEM CLEAR</div>
+        </div>
+
+        <div style="margin-top:auto; padding:15px; border:1px solid var(--azure); text-align:center; border-radius:6px;">
+            <label>FINAL DECISION</label>
+            <div id="decision" style="font-size: 24px; font-weight: 900;">IDLE</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">3. Telemetry Logs</div>
+        <div id="log"><div class="log-entry">> Initialized. Standing by.</div></div>
+    </div>
+</div>
+
+<script>
+    async function runAudit() {
+        const key = document.getElementById('key').value.trim();
+        const endpoint = document.getElementById('endpoint').value.trim().replace(/\/+$/, "");
+        const text = document.getElementById('testText').value.trim();
+        const logger = document.getElementById('log');
+        const btn = document.getElementById('btn');
+
+        if(!key || !endpoint || !text) return alert("Required: Key, Endpoint, and Text.");
+
+        btn.innerText = "Scanning..."; btn.disabled = true;
+        logger.innerHTML += `<div class="log-entry">> <b>[SCAN]</b> Initiating Multi-Layer Defense Check...</div>`;
+
+        // Endpoints
+        const harmPath = `${endpoint}/contentsafety/text:analyze?api-version=2024-09-01`;
+        const shieldPath = `${endpoint}/contentsafety/text:shieldPrompt?api-version=2024-09-01`;
+
+        try {
+            // FIRE BOTH APIS
+            const [harmRes, shieldRes] = await Promise.all([
+                fetch(harmPath, { method:'POST', headers:{'Ocp-Apim-Subscription-Key':key,'Content-Type':'application/json'}, body:JSON.stringify({text:text}) }),
+                fetch(shieldPath, { method:'POST', headers:{'Ocp-Apim-Subscription-Key':key,'Content-Type':'application/json'}, body:JSON.stringify({userPrompt:text}) })
+            ]);
+
+            const harmData = await harmRes.json();
+            const shieldData = await shieldRes.json();
+
+            // 1. PROCESS HARM
+            let maxS = 0;
+            harmData.categoriesAnalysis.forEach(c => {
+                const s = c.severity; if(s > maxS) maxS = s;
+                const fill = document.getElementById(c.category.toLowerCase() + '-fill');
+                if(fill) {
+                    fill.style.width = (s / 6 * 100) + "%";
+                    fill.className = 'fill ' + (s < 2 ? 'low' : s < 4 ? 'med' : 'high');
+                }
+            });
+
+            // 2. PROCESS JAILBREAK
+            const jbStatus = document.getElementById('jb-status');
+            const attack = shieldData.userPromptAnalysis?.attackDetected;
+            if(attack) {
+                jbStatus.innerText = "⚠ ATTACK DETECTED"; jbStatus.style.color = "var(--red)";
+                logger.innerHTML += `<div class="log-entry" style="color:var(--red)">> [ALERT] Jailbreak pattern identified.</div>`;
+            } else {
+                jbStatus.innerText = "✓ SYSTEM CLEAR"; jbStatus.style.color = "var(--gold)";
+            }
+
+            // 3. VERDICT
+            const dec = document.getElementById('decision');
+            if(maxS >= 4 || attack) { dec.innerText = "BLOCK"; dec.style.color = "var(--red)"; }
+            else { dec.innerText = "SAFE"; dec.style.color = "var(--gold)"; }
+
+        } catch(e) { logger.innerHTML += `<div class="log-entry" style="color:var(--red)">> [ERROR] ${e.message}</div>`; }
+        finally { btn.innerText = "Execute Forensic Scan"; btn.disabled = false; }
+    }
+</script>
+</body>
+</html>

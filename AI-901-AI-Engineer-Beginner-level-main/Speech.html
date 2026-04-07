@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Speech Hub v4.0 - Anand Rao N</title>
+    
+    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+
+    <style>
+        :root { --azure: #0078D4; --dark: #1e1e1e; --success: #4caf50; --warning: #ff9800; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f3f2f1; padding: 20px; color: #323130; }
+        
+        .container { max-width: 850px; margin: auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h1 { color: var(--azure); margin: 0; border-bottom: 2px solid #0078D4; padding-bottom: 10px; }
+        .branding { font-size: 14px; margin-bottom: 30px; color: #605e5c; }
+
+        .config-grid { background: #fff8e1; border: 1px solid #ffecb3; padding: 20px; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .input-group label { display: block; font-size: 11px; font-weight: bold; color: #795548; margin-bottom: 5px; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+
+        .mode-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-card { flex: 1; padding: 15px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; text-align: center; font-weight: 600; background: white; }
+        .mode-card.active { border-color: var(--azure); background: #eff6fc; color: var(--azure); }
+
+        textarea { width: 100%; height: 100px; padding: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; margin-bottom: 20px; resize: none; box-sizing: border-box; }
+
+        .action-btn { width: 100%; padding: 20px; background: var(--azure); color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .action-btn:hover { background: #005a9e; transform: translateY(-1px); }
+        .action-btn:active { transform: translateY(0); }
+
+        /* Modern Console/Terminal */
+        .terminal { background: var(--dark); color: #d4d4d4; padding: 20px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 14px; margin-top: 30px; border-left: 5px solid var(--azure); min-height: 100px; line-height: 1.6; }
+        .status-dot { height: 10px; width: 100px; display: inline-block; border-radius: 5px; background: #555; margin-right: 10px; }
+        .pulse { animation: pulse-red 1.5s infinite; background: #f44336; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        footer { text-align: center; margin-top: 40px; font-size: 12px; color: #a19f9d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Azure English Speech Hub</h1>
+    <p class="branding"><strong>Cyberdefenselearning.com</strong> | Author: Anand Rao N</p>
+
+    <div class="config-grid">
+        <div class="input-group">
+            <label>AZURE KEY (LONG OR SHORT)</label>
+            <input type="password" id="azureKey" placeholder="Paste Key Here">
+        </div>
+        <div class="input-group">
+            <label>SERVICE REGION</label>
+            <input type="text" id="azureRegion" placeholder="e.g., eastus">
+        </div>
+    </div>
+
+    <div class="mode-container">
+        <div class="mode-card active" id="sttCard" onclick="toggleMode('stt')">🎤 Speech-to-Text</div>
+        <div class="mode-card" id="ttsCard" onclick="toggleMode('tts')">🔊 Text-to-Speech</div>
+    </div>
+
+    <textarea id="mainInput" placeholder="Input text for TTS mode..."></textarea>
+
+    <button class="action-btn" id="mainAction" onclick="igniteEngine()">ACTIVATE SPEECH ENGINE</button>
+
+    <div class="terminal" id="terminal">
+        <span id="dot" class="status-dot"></span> <span id="msg">[SYSTEM] Ready. Enter credentials and click Activate.</span>
+    </div>
+
+    <footer>
+        &copy; 2026 Anand Rao N | Secured Audio AI Pipeline
+    </footer>
+</div>
+
+<script>
+    let mode = 'stt';
+
+    function toggleMode(m) {
+        mode = m;
+        document.getElementById('sttCard').className = (m === 'stt') ? 'mode-card active' : 'mode-card';
+        document.getElementById('ttsCard').className = (m === 'tts') ? 'mode-card active' : 'mode-card';
+        updateLog(`Switched to ${m.toUpperCase()} Mode.`, 'default');
+    }
+
+    function updateLog(text, type) {
+        const msg = document.getElementById("msg");
+        const dot = document.getElementById("dot");
+        msg.innerHTML = text;
+        
+        dot.className = "status-dot";
+        if (type === 'listening') dot.classList.add('pulse');
+        if (type === 'error') dot.style.background = '#f44336';
+        if (type === 'success') dot.style.background = '#4caf50';
+    }
+
+    async function igniteEngine() {
+        const key = document.getElementById("azureKey").value.trim();
+        const region = document.getElementById("azureRegion").value.trim();
+        const textIn = document.getElementById("mainInput").value;
+
+        if (!key || !region) {
+            updateLog("<b>ERROR:</b> Key and Region are mandatory.", 'error');
+            return;
+        }
+
+        try {
+            // 1. FORCING MIC PERMISSION (The "Anti-Dummy" Step)
+            if (mode === 'stt') {
+                updateLog("<i>Initializing hardware...</i>", 'default');
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+            }
+
+            // 2. Setup Azure
+            const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(key, region);
+            speechConfig.speechRecognitionLanguage = "en-US";
+            speechConfig.speechSynthesisLanguage = "en-US";
+            speechConfig.speechSynthesisVoiceName = "en-US-AvaMultilingualNeural";
+
+            if (mode === 'stt') {
+                const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+                const recognizer = new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+
+                updateLog("<b>LISTENING...</b> Speak clearly in English.", 'listening');
+
+                recognizer.recognizeOnceAsync(result => {
+                    if (result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+                        updateLog(`<b>TRANSCRIPTION:</b> "${result.text}"`, 'success');
+                    } else {
+                        updateLog("<b>FAIL:</b> Check mic or Key/Region match.", 'error');
+                    }
+                    recognizer.close();
+                });
+
+            } else {
+                if (!textIn) { updateLog("<b>ERROR:</b> Type something for TTS.", 'error'); return; }
+                updateLog("<i>Synthesizing English Voice...</i>", 'default');
+                const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig);
+                
+                synthesizer.speakTextAsync(textIn, result => {
+                    updateLog("<b>SUCCESS:</b> Audio output complete.", 'success');
+                    synthesizer.close();
+                });
+            }
+
+        } catch (err) {
+            updateLog(`<b>CRITICAL:</b> ${err.message}`, 'error');
+            console.error(err);
+        }
+    }
+</script>
+
+</body>
+</html>

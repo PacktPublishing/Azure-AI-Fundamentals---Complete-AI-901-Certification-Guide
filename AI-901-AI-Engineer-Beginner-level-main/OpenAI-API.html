@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Azure GenAI Lab - Anand Rao N</title>
+    <style>
+        :root { --azure: #0078D4; --bg: #0d1117; --panel: #161b22; --border: #30363d; --white: #ffffff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--white); margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
+        
+        .main-header { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; margin-bottom: 10px; flex-shrink: 0; }
+        .brand-title { color: var(--azure); font-weight: 900; font-size: 20px; letter-spacing: 1.5px; }
+        .architect-name { font-weight: bold; color: var(--white); font-size: 16px; }
+
+        .dashboard { display: grid; grid-template-columns: 320px 1fr 300px; gap: 10px; flex-grow: 1; min-height: 0; }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; padding: 15px; overflow: hidden; }
+        
+        label { display: block; font-size: 10px; margin-bottom: 6px; color: var(--white); font-weight: bold; text-transform: uppercase; }
+        input, textarea { width: 100%; padding: 10px; background: #010409; border: 1px solid var(--border); color: var(--white); border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 15px; }
+        
+        .viewport { flex-grow: 1; position: relative; background: #000; border-radius: 6px; overflow: auto; border: 1px solid #444; display: flex; align-items: center; justify-content: center; }
+        #genImage { max-width: 100%; height: auto; display: none; }
+        
+        #console { flex-grow: 1; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 11px; color: var(--white); }
+        .log-entry { padding: 4px 0; border-bottom: 1px solid #21262d; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; text-transform: uppercase; color: var(--white); transition: 0.3s; }
+        .btn-gen { background: var(--azure); margin-bottom: 8px; }
+        .btn-reset { background: #30363d; }
+    </style>
+</head>
+<body>
+
+<div class="main-header">
+    <div>
+        <div class="brand-title">AZURE GenAI HUB</div>
+        <div style="font-size: 10px; color: var(--white);">CYBERDEFENSELEARNING.COM</div>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 10px; color: var(--azure); font-weight: bold;">ARCHITECT</div>
+        <div class="architect-name">Anand Rao N</div>
+    </div>
+</div>
+
+<div class="dashboard">
+    <div class="panel">
+        <label>Azure OpenAI Key</label>
+        <input type="password" id="apiKey" placeholder="Paste Key">
+        
+        <label>Endpoint URL</label>
+        <input type="text" id="endpoint" placeholder="https://resource.openai.azure.com/">
+
+        <label>Deployment Name (Case Sensitive)</label>
+        <input type="text" id="deployName" placeholder="Exact name from Azure Studio">
+
+        <label>Image Prompt</label>
+        <textarea id="prompt" style="height:100px; width:100%; background:#010409; color:white; border:1px solid #30363d; border-radius:4px; padding:10px; resize:none;" placeholder="A futuristic hacker desk..."></textarea>
+        
+        <div style="margin-top: auto;">
+            <button class="btn btn-gen" onclick="generate()">Generate Image</button>
+            <button class="btn btn-reset" onclick="location.reload()">Reset Hub</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="viewport" id="viewport">
+            <img id="genImage" src="">
+            <div id="msg">AWAITING HANDSHAKE...</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div id="console">
+            <div class="log-entry"><b>[SYSTEM]</b> Laboratory Online.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function generate() {
+        const key = document.getElementById('apiKey').value.trim();
+        const endpoint = document.getElementById('endpoint').value.trim().replace(/\/+$/, "");
+        const deployment = document.getElementById('deployName').value.trim();
+        const promptText = document.getElementById('prompt').value.trim();
+        const logger = document.getElementById('console');
+        const img = document.getElementById('genImage');
+
+        if(!key || !endpoint || !deployment) return alert("All credentials required.");
+
+        logger.innerHTML += `<div class="log-entry"><b>[API]</b> Routing to deployment: ${deployment}</div>`;
+        
+        // 🛡️ CRITICAL FIX: The API path must include the exact deployment name
+        const apiPath = `${endpoint}/openai/deployments/${deployment}/images/generations?api-version=2024-02-01`;
+
+        try {
+            const response = await fetch(apiPath, {
+                method: 'POST',
+                headers: { 'api-key': key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: promptText, n: 1, size: "1024x1024" })
+            });
+
+            const result = await response.json();
+
+            if (result.data) {
+                img.src = result.data[0].url;
+                img.style.display = "block";
+                document.getElementById('msg').style.display = "none";
+                logger.innerHTML += `<div class="log-entry"><b>[SUCCESS]</b> Synthesis Complete.</div>`;
+            } else {
+                logger.innerHTML += `<div class="log-entry" style="color:#ff7b72"><b>[ERROR]</b> ${result.error?.message}</div>`;
+            }
+        } catch (err) {
+            logger.innerHTML += `<div class="log-entry" style="color:#ff7b72"><b>[FAIL]</b> Network Connection Refused.</div>`;
+        }
+        logger.scrollTop = logger.scrollHeight;
+    }
+</script>
+</body>
+</html>
